@@ -1,7 +1,8 @@
 require 'cloudformer'
 
 config = { stack_name: "arvind-test"}
-Cloudformer::Tasks.new(config) do |t|
+
+Cloudformer::Tasks.new(config) do |t, args|
   t.template = "basic_template.json"
   #AMI Works in Sydney region only, ensure you supply the right AMI.
   t.parameters = {"AmiId" => "ami-8da439b7"}
