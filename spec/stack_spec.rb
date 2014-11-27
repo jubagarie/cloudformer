@@ -6,7 +6,7 @@ describe Stack do
     it 'should load custom config option while initializing cloud formation' do
       config = {stack_name: 'stack',
           :aws_access_key => 'dummy-key',
-          :aws_secert_access_key => 'access-key',
+          :aws_secret_access_key => 'access-key',
           :region => 'ap-southeast-2'}
 
       mock_cf = double(stacks: {})
@@ -16,7 +16,7 @@ describe Stack do
       stack = Stack.new(config)
 
       AWS.config.access_key_id.should be config[:aws_access_key]
-      AWS.config.secret_access_key.should be config[:aws_secert_access_key]
+      AWS.config.secret_access_key.should be config[:aws_secret_access_key]
     end
   end
 

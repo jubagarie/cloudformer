@@ -16,7 +16,7 @@ class Stack
     @name = config[:stack_name]
 
     AWS.config( {access_key_id: config[:aws_access_key],
-                 secret_access_key: config[:aws_secert_access_key]})
+                 secret_access_key: config[:aws_secret_access_key]})
 
     @cf = AWS::CloudFormation.new({region: config[:region]})
     @stack = @cf.stacks[name]
