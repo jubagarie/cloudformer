@@ -8,12 +8,21 @@ class Stack
   END_STATES     = SUCESS_STATES + FAILURE_STATES
 
   # WAITING_STATES = ["CREATE_IN_PROGRESS","DELETE_IN_PROGRESS","ROLLBACK_IN_PROGRESS","UPDATE_COMPLETE_CLEANUP_IN_PROGRESS","UPDATE_IN_PROGRESS","UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS","UPDATE_ROLLBACK_IN_PROGRESS"]
-  def initialize(stack_name)
-    @name = stack_name
-    @cf = AWS::CloudFormation.new
+
+  # Config options
+  # {:aws_access_key => nil, :aws_secert_access_key => nil, :region => nil}
+
+  def initialize(config)
+    @name = config[:stack_name]
+
+    AWS.config( {access_key_id: config[:aws_access_key],
+                 secret_access_key: config[:aws_secret_access_key]})
+
+    @cf = AWS::CloudFormation.new({region: config[:region]})
     @stack = @cf.stacks[name]
-    @ec2 = AWS::EC2.new
+    @ec2 = AWS::EC2.new region: config[:region]
   end
+
 
   def deployed
     return stack.exists?
