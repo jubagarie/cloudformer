@@ -49,10 +49,10 @@ class Stack
   end
 
   def apply(template_file, parameters, disable_rollback=false, capabilities=[], notify=[])
-    template_url = nil
-    template_body = nil
-    if ( template_file =~ /^https:\/\/s3\S+\.amazonaws\.com\/(.*)/ )
-      template_url = template_file
+    if ( template_file =~ /^https:\/\/.*(.json)$/ )
+      template = template_file
+    elsif ( template_file =~ /^https:\/\/s3\S+\.amazonaws\.com\/(.*)/ )
+      template = template_file
     else
       template_body = File.read(template_file)
     end
