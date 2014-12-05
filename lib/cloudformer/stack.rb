@@ -1,4 +1,5 @@
 require 'aws-sdk'
+require 'httparty'
 
 class Stack
   attr_accessor   :stack, :name, :deployed, :resource
@@ -48,16 +49,22 @@ class Stack
     SUCESS_STATES.include?(status_message) ? true : false
   end
 
-  def apply(template_file, parameters, disable_rollback=false, capabilities=[], notify=[])
-    if ( template_file =~ /^http:\/\/.*(.json)$/ )
+  def apply(template_file, parameters, disable_rollback=false, capabilities=[], notify=[], tags=[])
+    if ( template_file =~ /^https:\/\/s3\S+\.amazonaws\.com\/(.*)/ )
       template = template_file
-    elsif ( template_file =~ /^https:\/\/s3\S+\.amazonaws\.com\/(.*)/ )
-      template = template_file
+    elsif ( template_file =~ /^http.*(.json)$/ )
+      begin
+        response = HTTParty.get(template_file)
+        template = response.body
+      rescue => e
+        puts "Unable to retieve json file for template from url - #{e}"
+        return :Failed
+      end
     else
       template_body = File.read(template_file)
     end
-    validation = validate(template_body, template_url)
-    unless validation["valid"]
+    validation = validate(template)
+    unless template == template_file || validation["valid"]
       puts "Unable to update - #{validation["response"][:code]} - #{validation["response"][:message]}"
       return :Failed
     end
@@ -66,7 +73,7 @@ class Stack
       if deployed
         pending_operations = update(template_body, template_url parameters, capabilities)
       else
-        pending_operations = create(template_body, template_url parameters, disable_rollback, capabilities, notify)
+        pending_operations = create(template, parameters, disable_rollback, capabilities, notify, tags)
       end
     rescue ::AWS::CloudFormation::Errors::ValidationError => e
       puts e.message
@@ -199,28 +206,9 @@ class Stack
     return true
   end
 
-  def create(template_body, template_url, parameters, disable_rollback, capabilities, notify)
+  def create(template, parameters, disable_rollback, capabilities, notify, tags)
     puts "Initializing stack creation..."
-    
-    template_options = {}
-    if template_url.nil? then
-      template_options = {:template_body => template_body }
-    elsif template_body.nil? then
-      template_options = { :template_url =>  template_url }
-    else
-      puts "Use either template_url or template_body!!"
-      exit 1
-    end
-    
-    options = {
-                  :stack_name => name,
-                  :disable_rollback =>  disable_rollback,
-                  :parameters =>  parameters,
-                  :capabilities =>  capabilities
-
-              }
-    options = options.merge(template_options)
-    resource.create_stack(options)
+    @cf.stacks.create(name, template, :parameters => parameters, :disable_rollback => disable_rollback, :capabilities => capabilities, :notify => notify, :tags => tags)
     sleep 10
     return true
   end
