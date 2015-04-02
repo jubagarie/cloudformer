@@ -22,19 +22,28 @@ class Stack
     @ec2 = Aws::EC2::Client.new region: config[:region]
   end
 
+  def status_message
+    message = ""
+    begin
+      message =  stack.stack_status   
+    rescue Exception => e
+      message = "DOESNT_EXIST" if e.message == "Stack:#{name} does not exist" 
+    end 
+    return message
+  end
+  
+  def status_reason
+    message = ""
+    begin
+      message =  stack.stack_status_reason  
+    rescue Exception => e
+      message =  e.message 
+    end 
+    return message
+  end
 
   def deployed
-    ret_val = { message: "", status: false}
-    message=""
-    status = false
-    begin
-      ret_val[:status] = SUCESS_STATES.include?(stack.stack_status)
-      ret_val[:message] = stack.stack_status
-    rescue Exception => e
-      ret_val[:status] = false
-      ret_val[:message] = e.message
-    end
-    return ret_val
+    SUCESS_STATES.include?(status_message) ? true : false
   end
 
   def apply(template_file, parameters, disable_rollback=false, capabilities=[], notify=[])
@@ -64,7 +73,7 @@ class Stack
   end
 
   def deploy_succeded?
-    return true unless FAILURE_STATES.include?(stack.stack_status)
+    return true unless FAILURE_STATES.include?(status_message)
     puts "Unable to deploy template. Check log for more information."
     false
   end
@@ -142,7 +151,7 @@ class Stack
         printable_events = stack.events.reject{|a| (a.timestamp < current_time)}.sort_by {|a| a.timestamp}.reject {|a| a if printed.include?(a.event_id)}
         printable_events.each { |event| puts "#{event.timestamp} - #{event.physical_resource_id.to_s} - #{event.resource_type} - #{event.resource_status} - #{event.resource_status_reason.to_s}" }
         printed.concat(printable_events.map(&:event_id))
-        break if END_STATES.include?(stack.status)
+        break if END_STATES.include?(status_message)
         sleep(30)
       end
     end
