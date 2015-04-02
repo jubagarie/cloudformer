@@ -21,6 +21,7 @@ class AWSConfig
         key = k.gsub("CF_PARAM_","")
       aws_cf_params[key] = v
     end
+    aws_cf_params
   end
 
   def auth_config
@@ -35,6 +36,15 @@ class AWSConfig
   def template
     ENV['CF_TEMPLATE']
   end
+
+	def print_config_params
+    cf_params = cf_template_params
+    auth_cfg = auth_config
+    final_params = cf_params.merge(auth_cfg)
+		final_params.each do |k,v|
+      puts "#{k}: #{v}" unless  ['aws_access_key','aws_secret_access_key'].include?(k.to_s)
+		end
+	end
 
   private
 
@@ -58,12 +68,13 @@ puts "Running AWS Cloud Formation for profile #{aws_profile_name} tasks with fol
 #puts "PROFILE: #{aws_config_obj.profile}"
 #puts "AWS_CONFIG: #{aws_config_obj.auth_config}"
 #puts "CF_PARAMS: #{aws_config_obj.cf_template_params}"
+aws_config_obj.print_config_params
 
 puts '##' + '-'*74 + '##'
 
 Cloudformer::Tasks.new(aws_config_obj.auth_config) do |t, args|
   t.template = aws_config_obj.template
   t.parameters = aws_config_obj.cf_template_params
-  t.disable_rollback = true
+  t.disable_rollback = false
   t.capabilities=[]
 end

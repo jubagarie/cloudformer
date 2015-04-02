@@ -10,25 +10,24 @@ describe Stack do
           :region => 'ap-southeast-2'}
 
       mock_cf = double(stacks: {})
-      AWS::CloudFormation.should_receive(:new).with(region: config[:region]).and_return(mock_cf)
-      AWS::EC2.should_receive(:new).with(region: config[:region])
-
+      Aws::CloudFormation::Client.should_receive(:new).with(region: config[:region]).and_return(mock_cf)
+      Aws::EC2::Client.should_receive(:new).with(region: config[:region])
       stack = Stack.new(config)
-
-      AWS.config.access_key_id.should be config[:aws_access_key]
-      AWS.config.secret_access_key.should be config[:aws_secret_access_key]
+      puts "test:: #{Aws::Credentials.instance_variables}"
+      Aws.config[:credentials].access_key_id.should be config[:aws_access_key]
+      Aws.config[:credentials].secret_access_key.should be config[:aws_secret_access_key]
     end
   end
 
 
   describe 'stack formation' do
     before :each do
-      @cf = double(AWS::CloudFormation)
-      @cf_stack = double(AWS::CloudFormation::Stack)
-      @collection = double(AWS::CloudFormation::StackCollection)
-      AWS::CloudFormation.should_receive(:new).and_return(@cf)
-      @collection.should_receive(:[]).and_return(@cf_stack)
-      @cf.should_receive(:stacks).and_return(@collection)
+      @cf = double(Aws::CloudFormation::Client)
+      @cf_stack = double(Aws::CloudFormation::Stack)
+      #@collection = double(Aws::CloudFormation::StackCollection)
+      Aws::CloudFormation.should_receive(:new).and_return(@cf)
+      #@collection.should_receive(:[]).and_return(@cf_stack)
+      #@cf.should_receive(:stacks).and_return(@collection)
     end
 
     before :each do

@@ -14,18 +14,27 @@ class Stack
 
   def initialize(config)
     @name = config[:stack_name]
+    puts config
+    Aws.config[:credentials] = Aws::Credentials.new(config[:aws_access_key], config[:aws_secret_access_key])
 
-    AWS.config( {access_key_id: config[:aws_access_key],
-                 secret_access_key: config[:aws_secret_access_key]})
-
-    @cf = AWS::CloudFormation.new({region: config[:region]})
-    @stack = @cf.stacks[name]
-    @ec2 = AWS::EC2.new region: config[:region]
+    @cf = Aws::CloudFormation::Client.new( region: config[:region])
+    @stack = Aws::CloudFormation::Stack.new (@name)
+    @ec2 = Aws::EC2::Client.new region: config[:region]
   end
 
 
   def deployed
-    return stack.exists?
+    ret_val = { message: "", status: false}
+    message=""
+    status = false
+    begin
+      ret_val[:status] = SUCESS_STATES.include?(stack.stack_status)
+      ret_val[:message] = stack.stack_status
+    rescue Exception => e
+      ret_val[:status] = false
+      ret_val[:message] = e.message
+    end
+    return ret_val
   end
 
   def apply(template_file, parameters, disable_rollback=false, capabilities=[], notify=[])
@@ -41,7 +50,7 @@ class Stack
     end
     pending_operations = false
     begin
-      if deployed
+      if deployed[:status]
         pending_operations = update(template, parameters, capabilities)
       else
         pending_operations = create(template, parameters, disable_rollback, capabilities, notify)
@@ -55,7 +64,7 @@ class Stack
   end
 
   def deploy_succeded?
-    return true unless FAILURE_STATES.include?(stack.status)
+    return true unless FAILURE_STATES.include?(stack.stack_status)
     puts "Unable to deploy template. Check log for more information."
     false
   end
@@ -80,7 +89,7 @@ class Stack
   def status
     with_highlight do
       if deployed
-        puts "#{stack.name} - #{stack.status} - #{stack.status_reason}"
+        puts "#{stack.name} - #{stack.stack_status} - #{stack.status_reason}"
       else
         puts "#{name} - Not Deployed"
       end
@@ -176,7 +185,7 @@ class Stack
       return "Stack not up" if !deployed
       stack.resources.each do |resource|
         begin
-          next if resource.resource_type != "AWS::EC2::Instance"
+          next if resource.resource_type != "Aws::EC2::Instance"
           physical_resource_id = resource.physical_resource_id
           puts "Attempting to #{action} Instance with physical_resource_id: #{physical_resource_id}"
           @ec2.instances[physical_resource_id].send(action)
