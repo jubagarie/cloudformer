@@ -1,7 +1,7 @@
 require 'aws-sdk'
 
 class Stack
-  attr_accessor :stack, :name, :deployed
+  attr_accessor   :stack, :name, :deployed, :resource
 
   SUCESS_STATES  = ["CREATE_COMPLETE", "UPDATE_COMPLETE"]
   FAILURE_STATES = ["CREATE_FAILED", "DELETE_FAILED", "UPDATE_ROLLBACK_FAILED", "ROLLBACK_FAILED", "ROLLBACK_COMPLETE","ROLLBACK_FAILED","UPDATE_ROLLBACK_COMPLETE","UPDATE_ROLLBACK_FAILED"]
@@ -14,14 +14,16 @@ class Stack
 
   def initialize(config)
     @name = config[:stack_name]
-    puts config
+    puts @name + config[:region]
     Aws.config[:credentials] = Aws::Credentials.new(config[:aws_access_key], config[:aws_secret_access_key])
-
-    @cf = Aws::CloudFormation::Client.new( region: config[:region])
-    @stack = Aws::CloudFormation::Stack.new (@name)
+    @cf = Aws::CloudFormation::Client.new(region: config[:region])
+    @resource = Aws::CloudFormation::Resource.new(client: @cf)
+    @stack = @resource.stack(@name) 
     @ec2 = Aws::EC2::Client.new region: config[:region]
+
   end
 
+  
   def status_message
     message = ""
     begin
@@ -47,22 +49,24 @@ class Stack
   end
 
   def apply(template_file, parameters, disable_rollback=false, capabilities=[], notify=[])
+    template_url = nil
+    template_body = nil
     if ( template_file =~ /^https:\/\/s3\S+\.amazonaws\.com\/(.*)/ )
-      template = template_file
+      template_url = template_file
     else
-      template = File.read(template_file)
+      template_body = File.read(template_file)
     end
-    validation = validate(template)
+    validation = validate(template_body, template_url)
     unless validation["valid"]
       puts "Unable to update - #{validation["response"][:code]} - #{validation["response"][:message]}"
       return :Failed
     end
     pending_operations = false
     begin
-      if deployed[:status]
-        pending_operations = update(template, parameters, capabilities)
+      if deployed
+        pending_operations = update(template_body, template_url parameters, capabilities)
       else
-        pending_operations = create(template, parameters, disable_rollback, capabilities, notify)
+        pending_operations = create(template_body, template_url parameters, disable_rollback, capabilities, notify)
       end
     rescue ::AWS::CloudFormation::Errors::ValidationError => e
       puts e.message
@@ -98,9 +102,9 @@ class Stack
   def status
     with_highlight do
       if deployed
-        puts "#{stack.name} - #{stack.stack_status} - #{stack.status_reason}"
+        puts "#{stack.name} - #{stack.stack_status} - #{stack.stack_status_reason}"
       else
-        puts "#{name} - Not Deployed"
+        puts "#{stack.name} - Not Deployed"
       end
     end
   end
@@ -130,14 +134,6 @@ class Stack
     return 0
   end
 
-  def validate(template)
-    response = @cf.validate_template(template)
-    return {
-      "valid" => response[:code].nil?,
-      "response" => response
-    }
-  end
-
   private
   def wait_until_end
     printed = []
@@ -164,26 +160,67 @@ class Stack
     puts "="*cols
   end
 
-  def validate(template)
-    response = @cf.validate_template(template)
-    return {
-      "valid" => response[:code].nil?,
-      "response" => response
-    }
-  end
+  def validate(template_body, template_url)
+    ret_val ={}
+    begin
+      response = @cf.validate_template(template_body: template_body, template_url: template_url)
+      return {
+        "valid" => true,
+        "response" => response
+      }
+    rescue Exception => e
+      return {
+        "valid" => false,
+        "response" => e.message
+      }
+  
+    end
+      end
 
-  def update(template, parameters, capabilities)
-    stack.update({
-      :template => template,
-      :parameters => parameters,
-      :capabilities => capabilities
-    })
+  def update(template_body, template_url, parameters, capabilities)
+    template_options = {}
+    if template_url.nil? then
+      template_options = {:template_body => template_body }
+    elsif template_body.nil? then
+      template_options = { :template_url =>  template_url }
+    else
+      puts "Use either template_url or template_body!!"
+      exit 1
+    end
+    
+    options = {
+                  :stack_name => name,
+                  :parameters =>  parameters,
+                  :capabilities =>  capabilities
+
+              }
+    options = options.merge(template_options)
+    stack.update(options)
     return true
   end
 
-  def create(template, parameters, disable_rollback, capabilities, notify)
+  def create(template_body, template_url, parameters, disable_rollback, capabilities, notify)
     puts "Initializing stack creation..."
-    @cf.stacks.create(name, template, :parameters => parameters, :disable_rollback => disable_rollback, :capabilities => capabilities, :notify => notify)
+    
+    template_options = {}
+    if template_url.nil? then
+      template_options = {:template_body => template_body }
+    elsif template_body.nil? then
+      template_options = { :template_url =>  template_url }
+    else
+      puts "Use either template_url or template_body!!"
+      exit 1
+    end
+    
+    options = {
+                  :stack_name => name,
+                  :disable_rollback =>  disable_rollback,
+                  :parameters =>  parameters,
+                  :capabilities =>  capabilities
+
+              }
+    options = options.merge(template_options)
+    resource.create_stack(options)
     sleep 10
     return true
   end

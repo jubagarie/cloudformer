@@ -10,10 +10,10 @@ describe Stack do
           :region => 'ap-southeast-2'}
 
       mock_cf = double(stacks: {})
+      puts mock_cf.inspect
       Aws::CloudFormation::Client.should_receive(:new).with(region: config[:region]).and_return(mock_cf)
       Aws::EC2::Client.should_receive(:new).with(region: config[:region])
       stack = Stack.new(config)
-      puts "test:: #{Aws::Credentials.instance_variables}"
       Aws.config[:credentials].access_key_id.should be config[:aws_access_key]
       Aws.config[:credentials].secret_access_key.should be config[:aws_secret_access_key]
     end
@@ -24,10 +24,11 @@ describe Stack do
     before :each do
       @cf = double(Aws::CloudFormation::Client)
       @cf_stack = double(Aws::CloudFormation::Stack)
-      #@collection = double(Aws::CloudFormation::StackCollection)
-      Aws::CloudFormation.should_receive(:new).and_return(@cf)
-      #@collection.should_receive(:[]).and_return(@cf_stack)
-      #@cf.should_receive(:stacks).and_return(@collection)
+      @resoure = double(Aws::CloudFormation::Resource)
+      @pageable_response = double(Aws::PageableResponse)
+      Aws::CloudFormation::Client.should_receive(:new).with(region: config[:region]).and_return(@cf)
+      Aws::CloudFormation::Resource.should_receive(:new).with(client: @cf).and_return(@cf_stack)
+      @cf.should_receive(:list_stacks).and_return(@pageable_response)
     end
 
     before :each do
