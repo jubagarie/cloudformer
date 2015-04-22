@@ -72,6 +72,53 @@ class Stack
     return (if deploy_succeded? then :Succeeded else :Failed end)
   end
 
+  def validate(template_file, template_url)
+    template_body = File.read(template_file)
+    begin
+      response = @cf.validate_template(template_body: template_body, template_url: template_url)
+      return {
+        "valid" => true,
+        "response" => response
+      }
+    rescue Exception => e
+      return {
+        "valid" => false,
+        "response" => e.message
+      }
+  
+    end
+  end
+
+  def update(template_body, template_url, parameters, capabilities)
+    template_options = {}
+    if template_url.nil? then
+      template_options = {:template_body => template_body }
+    elsif template_body.nil? then
+      template_options = { :template_url =>  template_url }
+    else
+      puts "Use either template_url or template_body!!"
+      exit 1
+    end
+    
+    options = {
+                  :stack_name => name,
+                  :parameters =>  parameters,
+                  :capabilities =>  capabilities
+
+              }
+    options = options.merge(template_options)
+    stack.update(options)
+    return true
+  end
+
+  def create(template, parameters, disable_rollback, capabilities, notify, tags)
+    puts "Initializing stack creation..."
+    @cf.stacks.create(name, template, :parameters => parameters, :disable_rollback => disable_rollback, :capabilities => capabilities, :notify => notify, :tags => tags)
+    sleep 10
+    return true
+  end
+
+
   def deploy_succeded?
     return true unless FAILURE_STATES.include?(status_message)
     puts "Unable to deploy template. Check log for more information."
@@ -154,52 +201,6 @@ class Stack
     puts "="*cols
     yield
     puts "="*cols
-  end
-
-  def validate(template_file, template_url)
-    template_body = File.read(template_file)
-    begin
-      response = @cf.validate_template(template_body: template_body, template_url: template_url)
-      return {
-        "valid" => true,
-        "response" => response
-      }
-    rescue Exception => e
-      return {
-        "valid" => false,
-        "response" => e.message
-      }
-  
-    end
-  end
-
-  def update(template_body, template_url, parameters, capabilities)
-    template_options = {}
-    if template_url.nil? then
-      template_options = {:template_body => template_body }
-    elsif template_body.nil? then
-      template_options = { :template_url =>  template_url }
-    else
-      puts "Use either template_url or template_body!!"
-      exit 1
-    end
-    
-    options = {
-                  :stack_name => name,
-                  :parameters =>  parameters,
-                  :capabilities =>  capabilities
-
-              }
-    options = options.merge(template_options)
-    stack.update(options)
-    return true
-  end
-
-  def create(template, parameters, disable_rollback, capabilities, notify, tags)
-    puts "Initializing stack creation..."
-    @cf.stacks.create(name, template, :parameters => parameters, :disable_rollback => disable_rollback, :capabilities => capabilities, :notify => notify, :tags => tags)
-    sleep 10
-    return true
   end
 
   def update_instances(action)
