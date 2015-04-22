@@ -50,20 +50,9 @@ class Stack
   end
 
   def apply(template_file, parameters, disable_rollback=false, capabilities=[], notify=[], tags=[])
-    if ( template_file =~ /^https:\/\/s3\S+\.amazonaws\.com\/(.*)/ )
-      template = template_file
-    elsif ( template_file =~ /^http.*(.json)$/ )
-      begin
-        response = HTTParty.get(template_file)
-        template = response.body
-      rescue => e
-        puts "Unable to retieve json file for template from #{template_file} - #{e.class}, #{e}"
-        return :Failed
-      end
-    else
-      template_body = File.read(template_file)
-    end
-    validation = validate(template)
+    template_url = nil
+    template_body = File.read(template_file)
+    validation = validate(template_file)
     unless validation["valid"]
       puts "Unable to update - #{validation["response"][:code]} - #{validation["response"][:message]}"
       return :Failed
@@ -71,9 +60,9 @@ class Stack
     pending_operations = false
     begin
       if deployed
-        pending_operations = update(template_body, template_url parameters, capabilities)
+        pending_operations = update(template_body, template_url, parameters, capabilities)
       else
-        pending_operations = create(template, parameters, disable_rollback, capabilities, notify, tags)
+        pending_operations = create(template_body, parameters, disable_rollback, capabilities, notify, tags)
       end
     rescue ::AWS::CloudFormation::Errors::ValidationError => e
       puts e.message
@@ -167,8 +156,8 @@ class Stack
     puts "="*cols
   end
 
-  def validate(template_body, template_url)
-    ret_val ={}
+  def validate(template_file, template_url)
+    template_body = File.read(template_file)
     begin
       response = @cf.validate_template(template_body: template_body, template_url: template_url)
       return {
@@ -182,7 +171,7 @@ class Stack
       }
   
     end
-      end
+  end
 
   def update(template_body, template_url, parameters, capabilities)
     template_options = {}

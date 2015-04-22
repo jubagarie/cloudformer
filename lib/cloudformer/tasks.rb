@@ -5,7 +5,7 @@ require 'rake/tasklib'
 module Cloudformer
  class Tasks < Rake::TaskLib
    def initialize(stack_config)
-     @stack =Stack.new(stack_config)
+     @stack = Stack.new(stack_config)
      if block_given?
        yield self
        define_tasks
