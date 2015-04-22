@@ -72,10 +72,10 @@ class Stack
     return (if deploy_succeded? then :Succeeded else :Failed end)
   end
 
-  def validate(template_file, template_url)
+  def validate(template_file)
     template_body = File.read(template_file)
     begin
-      response = @cf.validate_template(template_body: template_body, template_url: template_url)
+      response = @cf.validate_template(template_body: template_body, template_url: nil)
       return {
         "valid" => true,
         "response" => response
