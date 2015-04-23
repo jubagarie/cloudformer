@@ -15,7 +15,6 @@ class Stack
 
   def initialize(config)
     @name = config[:stack_name]
-    puts @name + config[:region]
     @cf = Aws::CloudFormation::Client.new(region: config[:region])
     @resource = Aws::CloudFormation::Resource.new(client: @cf)
     @stack = @resource.stack(@name) 
@@ -167,7 +166,7 @@ class Stack
       return 1
     end
       stack.outputs.each do |output|
-        puts "#{output.key} - #{output.description} - #{output.value}"
+        puts "#{output.output_key} - #{output.description} - #{output.output_value}"
       end
     end
     return 0
