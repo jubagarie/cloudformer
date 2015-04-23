@@ -58,7 +58,7 @@ class Stack
     pending_operations = false
     begin
       if deployed
-        pending_operations = update(template_body, parameters, capabilities)
+        pending_operations = update(template_file, parameters, capabilities)
       else
         pending_operations = create(template_file, parameters, disable_rollback, capabilities, notify, tags)
       end
