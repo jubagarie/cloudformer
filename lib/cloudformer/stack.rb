@@ -47,9 +47,7 @@ class Stack
     SUCESS_STATES.include?(status_message) ? true : false
   end
 
-  def apply(template_file, parameters, disable_rollback=false, capabilities=[], notify=[], tags=[])
-    template_url = nil
-    template_body = File.read(template_file)
+  def apply(template_file, template_body, parameters, disable_rollback=false, capabilities=[], notify=[], tags=[])
     validation = validate(template_file)
     unless validation["valid"]
       puts "Unable to update - #{validation["response"][:code]} - #{validation["response"][:message]}"
@@ -58,9 +56,9 @@ class Stack
     pending_operations = false
     begin
       if deployed
-        pending_operations = update(template_file, parameters, capabilities)
+        pending_operations = update(template_body, parameters, capabilities)
       else
-        pending_operations = create(template_file, parameters, disable_rollback, capabilities, notify, tags)
+        pending_operations = create(template_body, parameters, disable_rollback, capabilities, notify, tags)
       end
     rescue Aws::CloudFormation::Errors::ServiceError => e
       puts e.message
@@ -87,8 +85,8 @@ class Stack
     end
   end
 
-  def update(template, parameters, capabilities)
-    template_options = {:template_body => File.read(template) }
+  def update(template_body, parameters, capabilities)
+    template_options = {:template_body => template_body }
     options = {
       :stack_name => name,
       :parameters =>  parameters,
@@ -99,9 +97,9 @@ class Stack
     return true
   end
 
-  def create(template, parameters, disable_rollback, capabilities, notify, tags)
+  def create(template_body, parameters, disable_rollback, capabilities, notify, tags)
     puts "Initializing stack creation..."
-    template_options = {:template_body => File.read(template) }
+    template_options = {:template_body => template_body }
     options = {
       :stack_name => name,
       :disable_rollback =>  disable_rollback,
