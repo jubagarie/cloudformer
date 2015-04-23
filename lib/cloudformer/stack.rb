@@ -166,7 +166,7 @@ class Stack
       return 1
     end
       stack.outputs.each do |output|
-        puts "#{output.key} - #{output.description} - #{output.value}"
+        puts "#{output.output_key} - #{output.description} - #{output.output_value}"
       end
     end
     return 0
