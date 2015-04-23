@@ -125,7 +125,11 @@ module Cloudformer
     desc "Validate the Stack."
     task :validate, [:stack_name] do |t, args|
       if this_stack? args.stack_name
-        @stack.validate(template)
+        result = @stack.validate(template)
+        unless result['valid']
+          puts "Stack #{stack_name} failed to validate : #{result["response"]}"
+        end
+        exit result['valid']
       end
     end
    end
