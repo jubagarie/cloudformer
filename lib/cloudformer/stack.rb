@@ -16,7 +16,6 @@ class Stack
   def initialize(config)
     @name = config[:stack_name]
     puts @name + config[:region]
-    Aws.config[:credentials] = Aws::Credentials.new(config[:aws_access_key], config[:aws_secret_access_key])
     @cf = Aws::CloudFormation::Client.new(region: config[:region])
     @resource = Aws::CloudFormation::Resource.new(client: @cf)
     @stack = @resource.stack(@name) 
@@ -60,11 +59,11 @@ class Stack
     pending_operations = false
     begin
       if deployed
-        pending_operations = update(template_body, template_url, parameters, capabilities)
+        pending_operations = update(template_body, parameters, capabilities)
       else
-        pending_operations = create(template_body, parameters, disable_rollback, capabilities, notify, tags)
+        pending_operations = create(template_file, parameters, disable_rollback, capabilities, notify, tags)
       end
-    rescue ::AWS::CloudFormation::Errors::ValidationError => e
+    rescue Aws::CloudFormation::Errors::ServiceError => e
       puts e.message
       return (if e.message == "No updates are to be performed." then :NoUpdates else :Failed end)
     end
@@ -89,23 +88,13 @@ class Stack
     end
   end
 
-  def update(template_body, template_url, parameters, capabilities)
-    template_options = {}
-    if template_url.nil? then
-      template_options = {:template_body => template_body }
-    elsif template_body.nil? then
-      template_options = { :template_url =>  template_url }
-    else
-      puts "Use either template_url or template_body!!"
-      exit 1
-    end
-    
+  def update(template, parameters, capabilities)
+    template_options = {:template_body => File.read(template) }
     options = {
-                  :stack_name => name,
-                  :parameters =>  parameters,
-                  :capabilities =>  capabilities
-
-              }
+      :stack_name => name,
+      :parameters =>  parameters,
+      :capabilities =>  capabilities
+    }
     options = options.merge(template_options)
     stack.update(options)
     return true
@@ -113,11 +102,18 @@ class Stack
 
   def create(template, parameters, disable_rollback, capabilities, notify, tags)
     puts "Initializing stack creation..."
-    @cf.stacks.create(name, template, :parameters => parameters, :disable_rollback => disable_rollback, :capabilities => capabilities, :notify => notify, :tags => tags)
+    template_options = {:template_body => File.read(template) }
+    options = {
+      :stack_name => name,
+      :disable_rollback =>  disable_rollback,
+      :parameters =>  parameters,
+      :capabilities =>  capabilities
+    }
+    options = options.merge(template_options)
+    resource.create_stack(options)
     sleep 10
     return true
   end
-
 
   def deploy_succeded?
     return true unless FAILURE_STATES.include?(status_message)
