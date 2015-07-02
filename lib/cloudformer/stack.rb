@@ -4,8 +4,8 @@ require 'httparty'
 class Stack
   attr_accessor   :stack, :name, :deployed, :resource
 
-  SUCESS_STATES  = ["CREATE_COMPLETE", "UPDATE_COMPLETE"]
-  FAILURE_STATES = ["CREATE_FAILED", "DELETE_FAILED", "UPDATE_ROLLBACK_FAILED", "ROLLBACK_FAILED", "ROLLBACK_COMPLETE","ROLLBACK_FAILED","UPDATE_ROLLBACK_COMPLETE","UPDATE_ROLLBACK_FAILED"]
+  SUCESS_STATES  = ["CREATE_COMPLETE", "UPDATE_COMPLETE", "ROLLBACK_COMPLETE", "UPDATE_ROLLBACK_COMPLETE"]
+  FAILURE_STATES = ["CREATE_FAILED", "DELETE_FAILED", "UPDATE_ROLLBACK_FAILED", "ROLLBACK_FAILED", "ROLLBACK_FAILED", "UPDATE_ROLLBACK_FAILED"]
   END_STATES     = SUCESS_STATES + FAILURE_STATES
 
   # WAITING_STATES = ["CREATE_IN_PROGRESS","DELETE_IN_PROGRESS","ROLLBACK_IN_PROGRESS","UPDATE_COMPLETE_CLEANUP_IN_PROGRESS","UPDATE_IN_PROGRESS","UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS","UPDATE_ROLLBACK_IN_PROGRESS"]
@@ -184,7 +184,7 @@ class Stack
         printable_events.each { |event| puts "#{event.timestamp} - #{event.physical_resource_id.to_s} - #{event.resource_type} - #{event.resource_status} - #{event.resource_status_reason.to_s}" }
         printed.concat(printable_events.map(&:event_id))
         break if END_STATES.include?(status_message)
-        sleep(30)
+        sleep(10)
       end
     end
   end
