@@ -16,10 +16,10 @@ class Stack
 
   def initialize(config)
     @name = config[:stack_name]
-    @cf = Aws::CloudFormation::Client.new(region: config[:region])
+    @cf = Aws::CloudFormation::Client.new(region: config[:region], credentials: config[:credentials])
     @resource = Aws::CloudFormation::Resource.new(client: @cf)
     @stack = @resource.stack(@name) 
-    @ec2 = Aws::EC2::Client.new region: config[:region]
+    @ec2 = Aws::EC2::Client.new(region: config[:region], credentials: config[:credentials])
   end
 
   
